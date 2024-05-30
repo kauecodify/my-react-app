@@ -1,38 +1,41 @@
 const express = require('express');
-const axios = require('axios');
+const mongoose = require('mongoose');
 
 const app = express();
+const PORT = process.env.PORT || 5000;
+
 app.use(express.json());
 
-const PORT = 3000;
-const API_BASE_URL = 'http://localhost:8080/api/auth';
+// conexão com o MongoDB
+mongoose.connect('mongodb://localhost:27017/meu-banco-de-dados', {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+});
+const db = mongoose.connection;
+db.on('error', console.error.bind(console, 'Erro na conexão com o MongoDB:'));
+db.once('open', () => console.log('Conexão com o MongoDB estabelecida com sucesso!'));
 
-app.post('/api/signup', async (req, res) => {
-    try {
-        const { name, email, password, confirmPassword, cpf } = req.body;
+const usuarioSchema = new mongoose.Schema({
+  name: String,
+  email: String,
+  password: String,
+  confirmPassword: String,
+  cpf: String,
+});
 
-        // Verificação simples se a senha e a confirmação de senha correspondem
-        if (password !== confirmPassword) {
-            return res.status(400).json({ error: 'Passwords do not match' });
-        }
+const Usuario = mongoose.model('Usuario', usuarioSchema);
 
-        // Realizar requisição POST para a API de autenticação
-        const response = await axios.post(`${API_BASE_URL}/signup`, {
-            name,
-            email,
-            password,
-            confirmPassword,
-            cpf
-        });
-
-        // Retorna a resposta recebida da API de autenticação
-        res.json(response.data);
-    } catch (error) {
-        console.error('Error:', error.response.data);
-        res.status(error.response.status).json(error.response.data);
-    }
+app.post('/cadastro', async (req, res) => {
+  try {
+    const novoUsuario = new Usuario(req.body);
+    await novoUsuario.save();
+    res.status(201).send('Usuário cadastrado com sucesso!');
+  } catch (error) {
+    console.error('Erro ao cadastrar usuário:', error);
+    res.status(500).send('Erro ao cadastrar usuário.');
+  }
 });
 
 app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
+  console.log(`Servidor rodando em http://localhost:${PORT}`);
 });
